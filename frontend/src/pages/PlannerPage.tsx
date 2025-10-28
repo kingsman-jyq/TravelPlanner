@@ -66,10 +66,34 @@ export default function PlannerPage() {
     }
   }, [location.state?.tripId]);
 
-  // Update preferences field when transcript changes
+  const [userInput, setUserInput] = useState('');
+
+
+  const handleParseInput = async (text: string) => {
+    if (!text) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.post('/api/parse-user-input', { text });
+      const { destination, duration, budget, travelers, preferences } = response.data;
+      if (destination) setDestination(destination);
+      if (duration) setDuration(duration);
+      if (budget) setBudget(budget);
+      if (travelers) setTravelers(travelers);
+      if (preferences) setPreferences(preferences);
+    } catch (err) {
+      setError('Failed to parse your request. Please try again or fill the form manually.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Effect to handle speech recognition result
   useEffect(() => {
     if (!viewOnly && transcript) {
-      setPreferences(transcript);
+      setUserInput(transcript);
+      handleParseInput(transcript); // Automatically parse after speech recognition
     }
   }, [transcript, viewOnly]);
 
@@ -98,53 +122,66 @@ export default function PlannerPage() {
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <Header /> {/* Use the new Header component */}
+      <Header />
 
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           {viewOnly ? 'Trip Details' : 'Create a New Trip'}
         </Typography>
         {!viewOnly && (
-          <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Destination" value={destination} onChange={(e) => setDestination(e.target.value)} required />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Duration (days)" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value, 10))} required />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Budget ($)" type="number" value={budget} onChange={(e) => setBudget(parseInt(e.target.value, 10))} required />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Travelers" value={travelers} onChange={(e) => setTravelers(e.target.value)} required />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField 
-                fullWidth 
-                multiline 
-                rows={3} 
-                label="Preferences (e.g., nature, history, food)" 
-                value={preferences} 
-                onChange={(e) => setPreferences(e.target.value)} 
-                required 
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={startListening} disabled={!hasSupport || isListening} edge="end">
-                        <MicIcon color={isListening ? 'secondary' : 'action'} />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
-          </Grid>
-          <Button type="submit" variant="contained" sx={{ mt: 3 }} disabled={loading}>
-            {loading ? <CircularProgress size={24} /> : 'Generate Plan'}
-          </Button>
-                  </Box>
-                )}
+          <Box>
+            <TextField
+              fullWidth
+              label="Tell us your travel plans with your voice or by typing..."
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              sx={{ mb: 2 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={startListening} disabled={!hasSupport || isListening} edge="end">
+                      <MicIcon color={isListening ? 'secondary' : 'action'} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button onClick={() => handleParseInput(userInput)} variant="outlined" sx={{ mb: 4 }} disabled={loading}>
+              Parse My Request
+            </Button>
+
+            <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth label="Destination" value={destination} onChange={(e) => setDestination(e.target.value)} required />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth label="Duration (days)" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value, 10))} required />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth label="Budget (CNY)" type="number" value={budget} onChange={(e) => setBudget(parseInt(e.target.value, 10))} required />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth label="Travelers" value={travelers} onChange={(e) => setTravelers(e.target.value)} required />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    label="Preferences (e.g., nature, history, food)"
+                    value={preferences}
+                    onChange={(e) => setPreferences(e.target.value)}
+                    required
+                  />
+                </Grid>
+              </Grid>
+              <Button type="submit" variant="contained" sx={{ mt: 3 }} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : 'Generate Plan'}
+              </Button>
+            </Box>
+          </Box>
+        )}
         
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {itinerary && (

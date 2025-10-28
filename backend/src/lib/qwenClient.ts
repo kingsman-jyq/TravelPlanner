@@ -94,3 +94,47 @@ export async function generateTravelPlan(params: TravelParams): Promise<any> {
     throw new Error('Failed to generate travel plan.');
   }
 }
+
+export async function parseUserInput(text: string): Promise<any> {
+  const prompt = `
+    You are an AI assistant that extracts travel planning information from natural language. 
+    Parse the following user request and extract the Destination, Duration (in days), Budget (numeric, in CNY), Travelers (e.g., '2 adults, 1 child'), and Preferences (a concise summary of interests). 
+    If a field is not explicitly mentioned, infer a reasonable value based on common travel scenarios or extract it from the context. Do not leave fields as null if information can be inferred or extracted.
+    Your response MUST be a valid JSON object with the following structure:
+    {
+      "destination": "string",
+      "duration": "number",
+      "budget": "number",
+      "travelers": "string",
+      "preferences": "string"
+    }
+
+    Example User Request: "我想去日本，5 天，预算 1 万元，喜欢美食和动漫，带孩子"
+    Example AI Response: {"destination": "日本", "duration": 5, "budget": 10000, "travelers": "2 adults, 1 child", "preferences": "美食, 动漫, 适合带孩子"}
+
+    User Request: "${text}"
+  `;
+
+  console.log('QwenClient - Prompt sent to Qwen:', prompt);
+
+  try {
+    const completion = await openai.chat.completions.create({
+        model: "qwen-plus",
+        messages: [
+            { role: "system", content: "You are a helpful assistant that extracts structured data." },
+            { role: "user", content: prompt }
+        ],
+    });
+
+    console.log('QwenClient - Raw completion from Qwen:', JSON.stringify(completion));
+
+    if (completion.choices[0].message.content) {
+      return JSON.parse(completion.choices[0].message.content);
+    } else {
+      throw new Error("Failed to get a valid response from the AI for parsing user input.");
+    }
+  } catch (error) {
+    console.error('Error parsing user input with AI:', error);
+    throw new Error('Failed to parse user input.');
+  }
+}

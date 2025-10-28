@@ -17,7 +17,7 @@ export const useSpeechRecognition = () => {
     const recognition = new SpeechRecognition();
     recognition.continuous = false; // Stop listening after a pause
     recognition.interimResults = false; // We only want final results
-    recognition.lang = 'en-US'; // Default language
+    recognition.lang = 'zh-CN'; // Default language
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       const currentTranscript = event.results[0][0].transcript;

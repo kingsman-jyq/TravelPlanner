@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { supabase } from './lib/supabaseClient';
-import { generateTravelPlan } from './lib/qwenClient';
+import { generateTravelPlan, parseUserInput } from './lib/qwenClient';
 import { authMiddleware } from './middleware/auth';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -81,6 +81,26 @@ app.post('/auth/logout', async (req: Request, res: Response) => {
     maxAge: 0,
   });
   res.status(200).json({ message: 'Logged out successfully.' });
+});
+
+// --- PUBLIC API ENDPOINTS ---
+
+// Parse user natural language input into structured trip parameters
+app.post('/api/parse-user-input', async (req: Request, res: Response) => {
+  const { text } = req.body;
+  console.log('Backend - Received text for parsing:', text);
+  if (!text) {
+    return res.status(400).json({ error: 'Text input is required.' });
+  }
+
+  try {
+    const parsedData = await parseUserInput(text);
+    res.status(200).json(parsedData);
+  } catch (error) {
+    console.error('Error in /api/parse-user-input endpoint:', error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: `Failed to parse user input: ${message}` });
+  }
 });
 
 // --- PROTECTED API ENDPOINTS ---
