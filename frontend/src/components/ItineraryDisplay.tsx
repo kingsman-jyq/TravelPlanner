@@ -23,14 +23,18 @@ const getActivityIcon = (activityType: string) => {
     case 'arrival':
     case 'departure':
     case 'transport':
+    case '交通': // Add Chinese for transport
       return <FlightIcon />;
     case 'accommodation':
+    case '住宿': // Add Chinese for accommodation
       return <HotelIcon />;
     case 'dining':
     case 'food':
+    case '用餐': // Add Chinese for dining
       return <RestaurantIcon />;
     case 'sightseeing':
     case 'attraction':
+    case '观光': // Add Chinese for sightseeing
       return <AttractionsIcon />;
     default:
       return <LocalActivityIcon />;

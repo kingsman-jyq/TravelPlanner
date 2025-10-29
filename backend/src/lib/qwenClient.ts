@@ -24,41 +24,40 @@ export async function generateTravelPlan(params: TravelParams): Promise<any> {
   const formattedPreferences = preferences.split(',').map(p => p.trim()).filter(p => p !== '').join(', ');
 
   const prompt = `
-    As an expert travel planner, create a detailed, personalized travel itinerary based on the following user requirements. 
-    Your response MUST be a valid JSON object.
+    作为一名专业的旅行规划师，请根据以下用户需求，创建一个详细的、个性化的旅行行程。您的回复必须是一个有效的JSON对象。
 
-    **User Requirements:**
-    - **Destination:** ${destination}
-    - **Duration:** ${duration} days
-    - **Budget:** Approximately ${budget} CNY for ${travelers} people
-    - **Travelers:** ${travelers}
-    - **Preferences:** ${formattedPreferences}
+    **用户需求:**
+    - **目的地:** ${destination}
+    - **时长:** ${duration} 天
+    - **预算:** ${travelers} 人的预算约为 ${budget} 元人民币
+    - **出行人数:** ${travelers}
+    - **偏好:** ${formattedPreferences}
 
-    **JSON Output Structure:**
-    Please generate a JSON object with the following structure:
+    **JSON输出结构:**
+    请生成一个符合以下结构的JSON对象:
     {
-      "trip_name": "A descriptive name for the trip, e.g., '5-Day Tokyo Adventure'",
-      "budget_summary": "A brief summary of the estimated budget allocation.",
+      "trip_name": "旅行的描述性名称，例如：'东京五日游'",
+      "budget_summary": "预估预算分配的简要总结。",
       "itinerary": [
         {
           "day": 1,
-          "theme": "A theme for the day, e.g., 'Arrival and Shinjuku Exploration'",
+          "theme": "当日主题，例如：'抵达与新宿探索'",
           "activities": [
             {
               "start_time": "09:00",
               "end_time": "12:00",
-              "activity_type": "sightseeing | dining | transport | accommodation",
-              "description": "Detailed description of the activity.",
-              "location_name": "Name of the location",
-              "address": "Full address of the location"
+              "activity_type": "观光 | 用餐 | 交通 | 住宿",
+              "description": "活动的详细描述。",
+              "location_name": "地点名称",
+              "address": "地点的完整地址。重要提示：您必须提供中文地址，以便地图服务使用。"
             },
             {
               "start_time": "13:00",
               "end_time": "17:00",
-              "activity_type": "sightseeing",
-              "description": "Visit the Meiji Shrine, a peaceful oasis in the city.",
-              "location_name": "Meiji Jingu",
-              "address": "1-1 Yoyogikamizonocho, Shibuya City, Tokyo 151-8557, Japan"
+              "activity_type": "观光",
+              "description": "参观明治神宫，城市中的一片宁静绿洲。",
+              "location_name": "明治神宫",
+              "address": "东京都涩谷区代代木神园町1-1"
             }
           ]
         }
@@ -72,14 +71,14 @@ export async function generateTravelPlan(params: TravelParams): Promise<any> {
       }
     }
 
-    Ensure the itinerary is logical, covers the full duration, and aligns with the user's preferences and budget. The activity descriptions should be engaging and helpful.
+    请确保行程合理，涵盖整个时长，并符合用户的偏好和预算。活动描述应具有吸引力且有用。
   `;
 
   try {
     const completion = await openai.chat.completions.create({
         model: "qwen-plus",
         messages: [
-            { role: "system", content: "You are a helpful assistant." },
+            { role: "system", content: "你是一个乐于助人的助手。" },
             { role: "user", content: prompt }
         ],
     });
@@ -97,10 +96,10 @@ export async function generateTravelPlan(params: TravelParams): Promise<any> {
 
 export async function parseUserInput(text: string): Promise<any> {
   const prompt = `
-    You are an AI assistant that extracts travel planning information from natural language. 
-    Parse the following user request and extract the Destination, Duration (in days), Budget (numeric, in CNY), Travelers (e.g., '2 adults, 1 child'), and Preferences (a concise summary of interests). 
-    If a field is not explicitly mentioned, infer a reasonable value based on common travel scenarios or extract it from the context. Do not leave fields as null if information can be inferred or extracted.
-    Your response MUST be a valid JSON object with the following structure:
+    你是一个从自然语言中提取旅行规划信息的AI助手。
+    请解析以下用户请求，提取目的地、时长（天）、预算（数字，人民币）、出行人数（例如：'2 adults, 1 child'）和偏好（兴趣的简明总结）。
+    如果某个字段未明确提及，请根据常见的旅行场景推断一个合理的值或从上下文中提取。如果可以推断或提取信息，请不要将字段留空。
+    您的回复必须是一个有效的JSON对象，结构如下:
     {
       "destination": "string",
       "duration": "number",
@@ -121,7 +120,7 @@ export async function parseUserInput(text: string): Promise<any> {
     const completion = await openai.chat.completions.create({
         model: "qwen-plus",
         messages: [
-            { role: "system", content: "You are a helpful assistant that extracts structured data." },
+            { role: "system", content: "你是一个提取结构化数据的乐于助人的助手。" },
             { role: "user", content: prompt }
         ],
     });

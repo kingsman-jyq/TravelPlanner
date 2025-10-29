@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { supabase } from './lib/supabaseClient';
 import { generateTravelPlan, parseUserInput } from './lib/qwenClient';
+import { geocodeAddressBackend } from './lib/amapClient';
 import { authMiddleware } from './middleware/auth';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -122,7 +123,33 @@ app.post('/api/plan-trip', authMiddleware, async (req: Request, res: Response) =
     // 1. Generate plan from AI
     const aiPlan = await generateTravelPlan(req.body);
 
-    // 2. Save the main trip to the database
+    // Helper function for delay
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    let lastAmapCallTime = 0;
+    const AMAP_RATE_LIMIT_DELAY = 340; // Approximately 3 calls per second (1000ms / 3)
+
+    // 2. Geocode addresses and add coordinates to aiPlan with rate limiting
+    for (const day of aiPlan.itinerary) {
+      for (const activity of day.activities) {
+        if (activity.address && (activity.longitude === undefined || activity.latitude === undefined)) {
+          const now = Date.now();
+          const timeSinceLastCall = now - lastAmapCallTime;
+
+          if (timeSinceLastCall < AMAP_RATE_LIMIT_DELAY) {
+            await delay(AMAP_RATE_LIMIT_DELAY - timeSinceLastCall);
+          }
+
+          const coords = await geocodeAddressBackend(activity.address);
+          if (coords) {
+            activity.longitude = coords.longitude;
+            activity.latitude = coords.latitude;
+          }
+          lastAmapCallTime = Date.now();
+        }
+      }
+    }
+
+    // 3. Save the main trip to the database
     const { data: tripData, error: tripError } = await supabase
       .from('trips')
       .insert({
@@ -137,7 +164,7 @@ app.post('/api/plan-trip', authMiddleware, async (req: Request, res: Response) =
 
     if (tripError) throw tripError;
 
-    // 3. Save the itinerary items
+    // 4. Save the itinerary items
     const itineraryItemsToInsert = aiPlan.itinerary.flatMap((day: any) => 
       day.activities.map((activity: any) => ({
         trip_id: tripData.id,
@@ -148,6 +175,8 @@ app.post('/api/plan-trip', authMiddleware, async (req: Request, res: Response) =
         description: activity.description,
         location_name: activity.location_name,
         address: activity.address,
+        longitude: activity.longitude, // Include longitude
+        latitude: activity.latitude,   // Include latitude
       }))
     );
 
@@ -238,6 +267,8 @@ app.get('/api/trips/:id', authMiddleware, async (req: Request, res: Response) =>
         description: item.description,
         location_name: item.location_name,
         address: item.address,
+        longitude: item.longitude,
+        latitude: item.latitude,
       });
       return acc;
     }, {});

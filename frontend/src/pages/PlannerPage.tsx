@@ -36,6 +36,7 @@ export default function PlannerPage() {
   const [error, setError] = useState('');
   const [itinerary, setItinerary] = useState(null);
   const [viewOnly, setViewOnly] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(1); // New state for selected day
 
   // Effect to load a saved trip if a tripId is passed in state
   useEffect(() => {
@@ -47,6 +48,10 @@ export default function PlannerPage() {
         try {
           const response = await api.get(`/api/trips/${tripId}`);
           setItinerary(response.data);
+          // Set selectedDay to 1 when a new itinerary is loaded
+          if (response.data?.itinerary?.length > 0) {
+            setSelectedDay(1);
+          }
         } catch (err) {
           setError('Failed to load trip details. Please try again.');
           console.error(err);
@@ -63,6 +68,7 @@ export default function PlannerPage() {
     if (!location.state?.tripId) {
       setItinerary(null);
       setViewOnly(false);
+      setSelectedDay(1); // Reset selected day
     }
   }, [location.state?.tripId]);
 
@@ -112,6 +118,10 @@ export default function PlannerPage() {
         preferences,
       });
       setItinerary(response.data);
+      // Set selectedDay to 1 when a new itinerary is generated
+      if (response.data?.itinerary?.length > 0) {
+        setSelectedDay(1);
+      }
     } catch (err) {
       setError('Failed to generate travel plan. Please try again.');
       console.error(err);
@@ -190,7 +200,24 @@ export default function PlannerPage() {
               <ItineraryDisplay itinerary={itinerary} />
             </Grid>
             <Grid item xs={12} md={6}>
-              <MapComponent itinerary={itinerary} />
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" gutterBottom>Map View</Typography>
+                {itinerary.itinerary && itinerary.itinerary.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2, overflowX: 'auto' }}>
+                    {itinerary.itinerary.map((dayItem) => (
+                      <Button
+                        key={dayItem.day}
+                        variant={selectedDay === dayItem.day ? 'contained' : 'outlined'}
+                        onClick={() => setSelectedDay(dayItem.day)}
+                        size="small"
+                      >
+                        Day {dayItem.day}
+                      </Button>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+              <MapComponent itinerary={itinerary} selectedDay={selectedDay} />
             </Grid>
           </Grid>
         )}
