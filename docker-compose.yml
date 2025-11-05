@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env
+    networks:
+      - travel-planner-net
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # These build arguments are populated from the .env file
+        - VITE_AMAP_API_KEY=${VITE_AMAP_API_KEY}
+        - VITE_AMAP_SECURITY_KEY=${VITE_AMAP_SECURITY_KEY}
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - travel-planner-net
+
+networks:
+  travel-planner-net:
+    driver: bridge

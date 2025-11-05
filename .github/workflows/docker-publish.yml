@@ -1,0 +1,53 @@
+# This workflow builds and pushes Docker images to Aliyun Container Registry (ACR)
+
+name: Docker Publish to Aliyun ACR
+
+# Controls when the action will run.
+# Triggers the workflow on push events but only for the main branch
+# Also allows you to run this workflow manually from the Actions tab
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # 2. Set up Docker Buildx for advanced build capabilities
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # 3. Log in to Aliyun Container Registry
+      - name: Log in to Aliyun ACR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          password: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+
+      # 4. Build and push the backend image
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/travel_planner:backend-latest
+
+      # 5. Build and push the frontend image
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          build-args: |
+            VITE_AMAP_API_KEY=${{ secrets.VITE_AMAP_API_KEY }}
+            VITE_AMAP_SECURITY_KEY=${{ secrets.VITE_AMAP_SECURITY_KEY }}
+          tags: ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/travel_planner:frontend-latest
