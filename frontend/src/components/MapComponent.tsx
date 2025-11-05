@@ -1,27 +1,14 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { Itinerary } from '../types'; // Import the shared Itinerary type
 
-interface Activity {
+interface GeocodedActivity {
+  day: number;
   start_time: string;
   end_time: string;
   activity_type: string;
   description: string;
   location_name: string;
   address: string;
-}
-
-interface ItineraryDay {
-  day: number;
-  theme: string;
-  activities: Activity[];
-}
-
-interface ItineraryProp {
-  itinerary: ItineraryDay[];
-  // Add other properties of the itinerary object if needed, e.g., trip_id, estimated_cost
-}
-
-interface GeocodedActivity extends Activity {
-  day: number;
   longitude?: number;
   latitude?: number;
 }
@@ -42,6 +29,7 @@ declare global {
     Polyline: new (opts?: any) => any;
     Pixel: new (x: number, y: number) => any;
     plugin: (plugins: string[], callback: () => void) => void;
+    Driving: new (opts?: any) => AMapDriving; // Add Driving
   }
 
   interface AMapGeocoder {
@@ -53,13 +41,31 @@ declare global {
     geocodes: Array<{ location: { lng: number; lat: number } }>;
     // Add other properties of GeocoderResult if needed
   }
+
+  interface AMapDriving {
+    search: (
+      start: any, // AMap.LngLat or string
+      end: any,   // AMap.LngLat or string
+      options: { waypoints?: any[] }, // AMap.LngLat[] or string[]
+      callback: (status: string, result: AMapDrivingResult) => void
+    ) => void;
+    clear: () => void;
+  }
+
+  interface AMapDrivingResult {
+    info: string;
+    routes: Array<any>; // Detailed route information
+    // ... other properties
+  }
 }
 
-const MapComponent = ({ itinerary, selectedDay }: { itinerary: ItineraryProp; selectedDay: number }) => {
+const MapComponent = ({ itinerary, selectedDay }: { itinerary: Itinerary | null; selectedDay: number }) => {
   const mapRef = useRef(null);
-  const mapInstance = useRef(null);
+  const mapInstance = useRef<any>(null);
   const [geocodedActivities, setGeocodedActivities] = useState<GeocodedActivity[]>([]);
   const [isMapLoaded, setIsMapLoaded] = useState(false); // New state to track script loading
+  const [drivingService, setDrivingService] = useState<AMapDriving | null>(null);
+  const [markers, setMarkers] = useState<any[]>([]); // State to hold AMap.Marker instances
 
   const apiKey = import.meta.env.VITE_AMAP_API_KEY;
   const securityKey = import.meta.env.VITE_AMAP_SECURITY_KEY; // Get security key
@@ -72,23 +78,36 @@ const MapComponent = ({ itinerary, selectedDay }: { itinerary: ItineraryProp; se
       };
     }
 
-    if (window.AMap && mapRef.current) {
-      // If AMap is already loaded and ref is ready, initialize directly
-      mapInstance.current = new window.AMap.Map(mapRef.current, {
-        zoom: 11,
-        center: [116.397428, 39.90923],
-      });
-      setIsMapLoaded(true);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${apiKey}`; // Correct way for v2.0
-    script.async = true;
-    script.onload = () => {
-      setIsMapLoaded(true); // Script loaded
+    const loadMapAndPlugins = () => {
+      if (window.AMap && mapRef.current) {
+        if (!mapInstance.current) {
+          mapInstance.current = new window.AMap.Map(mapRef.current, {
+            zoom: 11,
+            center: [116.397428, 39.90923],
+          });
+        }
+        window.AMap.plugin(['AMap.Driving'], () => {
+          setDrivingService(new window.AMap.Driving({
+            map: mapInstance.current,
+            autoFitView: true,
+            showMarker: false,
+          }));
+          setIsMapLoaded(true);
+        });
+      }
     };
-    document.head.appendChild(script);
+
+    if (window.AMap) {
+      loadMapAndPlugins();
+    } else {
+      const script = document.createElement('script');
+      script.src = `https://webapi.amap.com/maps?v=2.0&key=${apiKey}`;
+      script.async = true;
+      script.onload = () => {
+        loadMapAndPlugins();
+      };
+      document.head.appendChild(script);
+    }
 
     return () => {
       if (mapInstance.current) {
@@ -96,7 +115,7 @@ const MapComponent = ({ itinerary, selectedDay }: { itinerary: ItineraryProp; se
         mapInstance.current = null;
       }
     };
-  }, [apiKey, securityKey, mapRef.current]); // Add securityKey to dependencies
+  }, [apiKey, securityKey]);
 
   useEffect(() => {
     if (isMapLoaded && mapRef.current && !mapInstance.current) {
@@ -109,7 +128,7 @@ const MapComponent = ({ itinerary, selectedDay }: { itinerary: ItineraryProp; se
   }, [isMapLoaded, mapRef.current]); // Depend on isMapLoaded and mapRef.current
 
   useEffect(() => {
-    console.log("processItinerary useEffect triggered. itinerary:", itinerary);
+    console.log("processItinerary useEffect triggered. itinerary:", JSON.stringify(itinerary, null, 2)); // Deep log itinerary
     const processItinerary = () => { // No longer async
       if (!itinerary || !itinerary.itinerary) {
         console.log("Itinerary not ready (inside processItinerary).", { itinerary });
@@ -131,59 +150,72 @@ const MapComponent = ({ itinerary, selectedDay }: { itinerary: ItineraryProp; se
   }, [itinerary]); // Remove geocoderReady from dependency array
 
   useEffect(() => {
-    if (!mapInstance.current || !geocodedActivities.length) {
-      console.log("Map instance or geocoded activities not ready for rendering.", { mapInstance: mapInstance.current, geocodedActivities });
+    if (!mapInstance.current || !geocodedActivities.length || !drivingService) {
       return;
     }
 
-    mapInstance.current.clearMap(); // Clear existing markers and lines
+    // 1. Clear previous overlays from the map
+    drivingService.clear();
+    markers.forEach(marker => marker.setMap(null));
 
     const currentDayActivities = geocodedActivities.filter(activity => activity.day === selectedDay);
-    console.log(`Rendering activities for Day ${selectedDay}:`, currentDayActivities);
 
     if (currentDayActivities.length === 0) {
-      console.log(`No activities for Day ${selectedDay} to render.`);
+      setMarkers([]); // No activities, ensure no markers are tracked
       return;
     }
 
-    const path = [];
-    currentDayActivities.forEach((activity, index) => {
-      if (activity.longitude && activity.latitude) {
-        const marker = new window.AMap.Marker({
-          position: new window.AMap.LngLat(activity.longitude, activity.latitude),
-          title: activity.location_name,
-          map: mapInstance.current,
-          label: {
-            content: `${index + 1}`,
-            direction: 'right',
-            offset: new window.AMap.Pixel(10, 0)
-          }
-        });
-        marker.on('click', () => {
-          mapInstance.current.setCenter([activity.longitude, activity.latitude]);
-          mapInstance.current.setZoom(15);
-        });
-        path.push([activity.longitude, activity.latitude]);
-      }
-    });
+    // 2. Prepare path for the driving service
+    const path = currentDayActivities
+      .filter(activity => activity.longitude && activity.latitude)
+      .map(activity => new window.AMap.LngLat(activity.longitude!, activity.latitude!));
 
-    console.log("Path for polyline:", path);
-
+    // 3. Use driving service to draw the route
     if (path.length > 1) {
-      const polyline = new window.AMap.Polyline({
-        path: path,
-        strokeColor: '#0000FF',
-        strokeWeight: 4,
-        map: mapInstance.current,
+      const start = path[0];
+      const end = path[path.length - 1];
+      const waypoints = path.slice(1, -1);
+
+      drivingService.search(start, end, { waypoints: waypoints }, (status: string, result: AMapDrivingResult) => {
+        if (status === 'complete' && result.routes.length) {
+          console.log('Driving route search complete. Adding markers.');
+          // 4. Create and set new markers AFTER the route is drawn
+          const newMarkers = currentDayActivities.map((activity, index) => {
+            if (activity.longitude && activity.latitude) {
+              return new window.AMap.Marker({
+                position: new window.AMap.LngLat(activity.longitude, activity.latitude),
+                title: activity.location_name,
+                map: mapInstance.current,
+                label: { content: `${index + 1}`, direction: 'right', offset: new window.AMap.Pixel(10, 0) }
+              });
+            }
+            return null;
+          }).filter(Boolean);
+          setMarkers(newMarkers as any[]);
+        } else {
+          console.error('Driving route search failed:', status, result);
+          setMarkers([]); // Clear marker tracking on failure
+        }
       });
+    } else if (path.length === 1) {
+      // Handle single point case
+      const activity = currentDayActivities[0];
+      const marker = new window.AMap.Marker({
+        position: new window.AMap.LngLat(activity.longitude!, activity.latitude!),
+        title: activity.location_name,
+        map: mapInstance.current,
+        label: { content: `1`, direction: 'right', offset: new window.AMap.Pixel(10, 0) }
+      });
+      setMarkers([marker]);
+      mapInstance.current.setCenter(path[0]);
+      mapInstance.current.setZoom(15);
+    } else {
+      setMarkers([]); // No valid path, clear markers
     }
 
-    if (path.length > 0) {
-      mapInstance.current.setFitView();
-    }
-  }, [geocodedActivities, selectedDay]);
+  }, [geocodedActivities, selectedDay, drivingService]);
 
-  return <div ref={mapRef} style={{ width: '100%', height: '400px' }} />;
+  return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 };
 
 export default MapComponent;

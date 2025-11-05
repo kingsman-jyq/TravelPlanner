@@ -9,6 +9,7 @@ import {
   ListItemText,
   Box,
   Chip,
+  Button,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FlightIcon from '@mui/icons-material/Flight';
@@ -41,47 +42,82 @@ const getActivityIcon = (activityType: string) => {
   }
 };
 
-export default function ItineraryDisplay({ itinerary }) {
+import type { Itinerary } from '../types';
+
+interface ItineraryDisplayProps {
+  itinerary: Itinerary;
+  selectedDay: number;
+  setSelectedDay: (day: number) => void;
+}
+
+export default function ItineraryDisplay({ itinerary, selectedDay, setSelectedDay }: ItineraryDisplayProps) {
   if (!itinerary) return null;
 
-  return (
-    <Box sx={{ mt: 4 }}>
-      <Typography variant="h5" component="h2" gutterBottom>
-        Your Generated Itinerary
-      </Typography>
-      {itinerary.itinerary.map((day, index) => (
-        <Accordion key={index} defaultExpanded>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls={`panel${index}a-content`}
-            id={`panel${index}a-header`}
-          >
-            <Typography variant="h6">Day {day.day}: {day.theme}</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <List>
-              {day.activities.map((activity, actIndex) => (
-                <ListItem key={actIndex}>
-                  <ListItemIcon>
-                    {getActivityIcon(activity.activity_type)}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={`${activity.start_time} - ${activity.end_time} - ${activity.description}`}
-                    secondary={activity.location_name}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </AccordionDetails>
-        </Accordion>
-      ))}
+    return (
 
-      <Box sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-        <Typography variant="h6" gutterBottom>Estimated Costs</Typography>
-        {Object.entries(itinerary.estimated_cost).map(([key, value]) => (
-          <Chip key={key} label={`${key.charAt(0).toUpperCase() + key.slice(1)}: $${value}`} sx={{ mr: 1, mb: 1 }} />
+      <Box>
+
+        <Typography variant="h5" component="h2" gutterBottom>
+          Your Generated Itinerary
+        </Typography>
+
+        {itinerary.itinerary && itinerary.itinerary.length > 0 && (
+            <Box sx={{display: 'flex', gap: 1, mb: 2, overflowX: 'auto'}}>
+              {itinerary.itinerary.map((dayItem) => (
+                  <Button
+                      key={dayItem.day}
+                      variant={selectedDay === dayItem.day ? 'contained' : 'outlined'}
+                      onClick={() => setSelectedDay(dayItem.day)}
+                      size="small"
+                  >
+                    Day {dayItem.day}
+                  </Button>
+              ))}
+            </Box>
+        )}
+
+        {itinerary.itinerary.map((day, index) => (
+            <Accordion key={index} defaultExpanded={day.day === selectedDay}>
+              <AccordionSummary
+                  expandIcon={<ExpandMoreIcon/>}
+                  aria-controls={`panel${index}a-content`}
+                  id={`panel${index}a-header`}
+              >
+                <Typography variant="h6">Day {day.day}: {day.theme}</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <List>
+                  {day.activities.map((activity, actIndex) => (
+                      <ListItem key={actIndex}>
+                        <ListItemIcon>
+                          {getActivityIcon(activity.activity_type)}
+                        </ListItemIcon>
+                        <ListItemText
+                            primary={
+                              <>
+                                {`${activity.start_time} - ${activity.end_time} - ${activity.description}`}
+                                {activity.estimated_cost !== undefined && (
+                                    <Typography component="span" variant="body2" color="text.secondary" sx={{ml: 1}}>
+                                      (Est. ¥{activity.estimated_cost})
+                                    </Typography>
+                                )}
+                              </>
+                            }
+                            secondary={activity.location_name}
+                        />
+                      </ListItem>
+                  ))}
+                </List>
+              </AccordionDetails>
+            </Accordion>
         ))}
+
+        <Box sx={{mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1}}>
+          <Typography variant="h6" gutterBottom>Estimated Costs</Typography>
+          {itinerary.estimated_cost && Object.entries(itinerary.estimated_cost).map(([key, value]) => (
+              <Chip key={key} label={`${key.charAt(0).toUpperCase() + key.slice(1)}: ¥${value}`} sx={{mr: 1, mb: 1}}/>
+          ))}
+        </Box>
       </Box>
-    </Box>
   );
 }

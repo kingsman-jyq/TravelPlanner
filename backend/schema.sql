@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS trips (
     end_date DATE,
     budget NUMERIC,
     preferences TEXT,
+    estimated_cost JSONB, -- New column for estimated total cost
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS itinerary_items (
     address TEXT,
     latitude FLOAT,
     longitude FLOAT,
+    estimated_cost NUMERIC, -- New column for estimated cost of this item
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

@@ -19,6 +19,7 @@ import Header from '../components/Header'; // Import the new Header component
 import api from '../services/api'; // Import the api service
 
 import { useLocation } from 'react-router-dom';
+import type { Itinerary } from '../types'; // Import Itinerary type
 
 export default function PlannerPage() {
   const location = useLocation();
@@ -34,7 +35,7 @@ export default function PlannerPage() {
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [itinerary, setItinerary] = useState(null);
+  const [itinerary, setItinerary] = useState<Itinerary | null>(null); // Use Itinerary type
   const [viewOnly, setViewOnly] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1); // New state for selected day
 
@@ -131,97 +132,100 @@ export default function PlannerPage() {
   };
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
 
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {viewOnly ? 'Trip Details' : 'Create a New Trip'}
-        </Typography>
-        {!viewOnly && (
-          <Box>
-            <TextField
-              fullWidth
-              label="Tell us your travel plans with your voice or by typing..."
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              sx={{ mb: 2 }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={startListening} disabled={!hasSupport || isListening} edge="end">
-                      <MicIcon color={isListening ? 'secondary' : 'action'} />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Button onClick={() => handleParseInput(userInput)} variant="outlined" sx={{ mb: 4 }} disabled={loading}>
-              Parse My Request
-            </Button>
-
-            <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField fullWidth label="Destination" value={destination} onChange={(e) => setDestination(e.target.value)} required />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField fullWidth label="Duration (days)" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value, 10))} required />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField fullWidth label="Budget (CNY)" type="number" value={budget} onChange={(e) => setBudget(parseInt(e.target.value, 10))} required />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField fullWidth label="Travelers" value={travelers} onChange={(e) => setTravelers(e.target.value)} required />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={3}
-                    label="Preferences (e.g., nature, history, food)"
-                    value={preferences}
-                    onChange={(e) => setPreferences(e.target.value)}
-                    required
-                  />
-                </Grid>
-              </Grid>
-              <Button type="submit" variant="contained" sx={{ mt: 3 }} disabled={loading}>
-                {loading ? <CircularProgress size={24} /> : 'Generate Plan'}
+      {/* Form and initial content container */}
+      {!itinerary && (
+        <Container maxWidth="lg" sx={{ pt: 4, flexGrow: 1 }}>
+          <Typography variant="h4" component="h1" gutterBottom>
+            {viewOnly ? 'Trip Details' : 'Create a New Trip'}
+          </Typography>
+          {!viewOnly && (
+            <Box>
+              <TextField
+                fullWidth
+                label="Tell us your travel plans with your voice or by typing..."
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                sx={{ mb: 2, backgroundColor: 'background.paper' }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={startListening} disabled={!hasSupport || isListening} edge="end">
+                        <MicIcon color={isListening ? 'secondary' : 'action'} />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <Button onClick={() => handleParseInput(userInput)} variant="outlined" sx={{ mb: 4 }} disabled={loading}>
+                Parse My Request
               </Button>
-            </Box>
-          </Box>
-        )}
-        
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {itinerary && (
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <ItineraryDisplay itinerary={itinerary} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" gutterBottom>Map View</Typography>
-                {itinerary.itinerary && itinerary.itinerary.length > 0 && (
-                  <Box sx={{ display: 'flex', gap: 1, mb: 2, overflowX: 'auto' }}>
-                    {itinerary.itinerary.map((dayItem) => (
-                      <Button
-                        key={dayItem.day}
-                        variant={selectedDay === dayItem.day ? 'contained' : 'outlined'}
-                        onClick={() => setSelectedDay(dayItem.day)}
-                        size="small"
-                      >
-                        Day {dayItem.day}
-                      </Button>
-                    ))}
-                  </Box>
-                )}
+
+              <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField fullWidth label="Destination" value={destination} onChange={(e) => setDestination(e.target.value)} required />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField fullWidth label="Duration (days)" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value, 10))} required />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField fullWidth label="Budget (CNY)" type="number" value={budget} onChange={(e) => setBudget(parseInt(e.target.value, 10))} required />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField fullWidth label="Travelers" value={travelers} onChange={(e) => setTravelers(e.target.value)} required />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      label="Preferences (e.g., nature, history, food)"
+                      value={preferences}
+                      onChange={(e) => setPreferences(e.target.value)}
+                      required
+                    />
+                  </Grid>
+                </Grid>
+                <Button type="submit" variant="contained" sx={{ mt: 3 }} disabled={loading}>
+                  {loading ? <CircularProgress size={24} /> : 'Generate Plan'}
+                </Button>
               </Box>
-              <MapComponent itinerary={itinerary} selectedDay={selectedDay} />
-            </Grid>
-          </Grid>
-        )}
-      </Container>
+            </Box>
+          )}
+        </Container>
+      )}
+
+      {error && <Alert severity="error" sx={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', zIndex: 20 }}>{error}</Alert>}
+
+      {/* Itinerary and Map container */}
+      {itinerary && (
+        <Box sx={{ flexGrow: 1, position: 'relative' }}>
+          {/* Map fills the entire container */}
+          <MapComponent itinerary={itinerary} selectedDay={selectedDay} />
+
+          {/* Itinerary Display as a floating panel */}
+          <Box 
+            sx={{
+              position: 'absolute',
+              left: '20px',
+              top: '20px', // Position relative to the map container
+              width: '380px',
+              maxHeight: 'calc(100% - 40px)', // Adjust height to fit viewport
+              overflowY: 'auto',
+              backgroundColor: 'background.paper',
+              boxShadow: 3,
+              zIndex: 10,
+              p: 2,
+              borderRadius: 2,
+            }}
+          >
+            <ItineraryDisplay itinerary={itinerary} selectedDay={selectedDay} setSelectedDay={setSelectedDay} />
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }

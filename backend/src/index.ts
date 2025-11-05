@@ -157,6 +157,7 @@ app.post('/api/plan-trip', authMiddleware, async (req: Request, res: Response) =
         destination: destination,
         budget: budget,
         preferences: preferences,
+        estimated_cost: aiPlan.estimated_cost, // Save estimated_cost from AI
         // You might want to add start_date and end_date later
       })
       .select()
@@ -177,6 +178,7 @@ app.post('/api/plan-trip', authMiddleware, async (req: Request, res: Response) =
         address: activity.address,
         longitude: activity.longitude, // Include longitude
         latitude: activity.latitude,   // Include latitude
+        estimated_cost: activity.estimated_cost, // Include estimated_cost for each activity
       }))
     );
 
@@ -186,7 +188,7 @@ app.post('/api/plan-trip', authMiddleware, async (req: Request, res: Response) =
 
     if (itemsError) throw itemsError;
 
-    // 4. Return the generated plan to the user
+    // 4. Return the generated and geocoded plan to the user
     res.status(201).json({ trip_id: tripData.id, ...aiPlan });
 
   } catch (error) {
@@ -205,7 +207,7 @@ app.get('/api/trips', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('trips')
-      .select('*')
+      .select('id, destination, budget, preferences, estimated_cost, created_at') // Select estimated_cost
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false });
 
@@ -231,7 +233,7 @@ app.get('/api/trips/:id', authMiddleware, async (req: Request, res: Response) =>
     // 1. Fetch the main trip
     const { data: trip, error: tripError } = await supabase
       .from('trips')
-      .select('*')
+      .select('*, estimated_cost') // Select estimated_cost
       .eq('id', id)
       .eq('user_id', req.user.id)
       .single();
@@ -269,6 +271,7 @@ app.get('/api/trips/:id', authMiddleware, async (req: Request, res: Response) =>
         address: item.address,
         longitude: item.longitude,
         latitude: item.latitude,
+        estimated_cost: item.estimated_cost, // Include estimated_cost for each activity
       });
       return acc;
     }, {});
@@ -278,9 +281,7 @@ app.get('/api/trips/:id', authMiddleware, async (req: Request, res: Response) =>
       trip_name: `Trip to ${trip.destination}`,
       budget_summary: `Budget: $${trip.budget}`,
       itinerary: Object.values(groupedByDay),
-      estimated_cost: {
-        total: trip.budget,
-      },
+      estimated_cost: trip.estimated_cost || { total: trip.budget }, // Include estimated_cost from trip table
     };
 
     res.status(200).json(reconstructedPlan);
